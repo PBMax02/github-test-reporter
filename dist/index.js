@@ -150291,12 +150291,12 @@ async function updateComment(comment_id, owner, repo, issue_number, body2) {
 }
 async function listComments(owner, repo, issue_number) {
   const octokit = await createGitHubClient();
-  const response = await octokit.issues.listComments({
+  return octokit.paginate(octokit.issues.listComments, {
     owner,
     repo,
-    issue_number
+    issue_number,
+    per_page: 100
   });
-  return response.data;
 }
 async function deleteComment(comment_id, owner, repo, issue_number) {
   const octokit = await createGitHubClient();
@@ -183263,14 +183263,15 @@ async function uploadArtifact2(artifactName, report, tempDir = "./temp") {
     }
   }
 }
-async function fetchArtifacts(owner, repo, runId) {
+async function fetchArtifacts(owner, repo, runId, name) {
   const octokit = await createGitHubClient();
-  const response = await octokit.actions.listWorkflowRunArtifacts({
+  return octokit.paginate(octokit.actions.listWorkflowRunArtifacts, {
     owner,
     repo,
-    run_id: runId
+    run_id: runId,
+    per_page: 100,
+    ...name ? { name } : {}
   });
-  return response.data.artifacts;
 }
 async function downloadArtifact(downloadUrl) {
   const octokit = await createGitHubClient();
@@ -183287,24 +183288,30 @@ async function downloadArtifact(downloadUrl) {
   return Buffer.from(artifactResponse.data);
 }
 async function processArtifactsFromRun(workflowRun, artifactName) {
-  const reports = [];
   const artifacts = await fetchArtifacts(
     context2.repo.owner,
     context2.repo.repo,
-    workflowRun.id
+    workflowRun.id,
+    artifactName
   );
-  for (const artifact of artifacts) {
-    if (artifact.name === artifactName) {
+  const attempts = artifacts.filter((artifact) => artifact.name === artifactName && !artifact.expired).sort((first, second) => second.id - first.id);
+  for (const artifact of attempts) {
+    try {
       const artifactBuffer = await downloadArtifact(
         artifact.archive_download_url
       );
       const report = unzipArtifact(artifactBuffer);
       if (report !== null) {
-        reports.push(report);
+        return [report];
       }
+    } catch (error2) {
+      console.error(
+        `Failed to process artifact ${artifact.id} of run ${workflowRun.id}:`,
+        error2
+      );
     }
   }
-  return reports;
+  return [];
 }
 function unzipArtifact(artifactBuffer) {
   const zip = new import_adm_zip.default(artifactBuffer);
