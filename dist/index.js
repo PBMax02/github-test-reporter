@@ -200447,7 +200447,7 @@ function generateReportByType(reportType, inputs, report) {
       if (reportConditionals?.showFailedReports) {
         info("Adding fail rate report to summary");
         addViewToSummary(
-          "### Fail Rate",
+          inputs.failRateReportMax > 0 ? `### Fail Rate - Top ${inputs.failRateReportMax} ` : "### Fail Rate",
           BuiltInReports.FailRateTable,
           limitFailRateReport(report, inputs.failRateReportMax)
         );
@@ -200479,7 +200479,7 @@ function generateReportByType(reportType, inputs, report) {
       if (reportConditionals?.showFlakyReports) {
         info("Adding flaky rate report to summary");
         addViewToSummary(
-          "### Flaky Rate",
+          inputs.flakyRateReportMax > 0 ? `### Flaky Rate - Top ${inputs.flakyRateReportMax} ` : "### Flaky Rate",
           BuiltInReports.FlakyRateTable,
           limitFlakyRateReport(report, inputs.flakyRateReportMax)
         );
